@@ -2,8 +2,11 @@ import WebSocket from "ws";
 import { OutgoingMessage, Position, UserData } from "./types";
 import { RoomManager } from "./RoomManager";
 
-const DefaultAvatar =
-  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ4rKRQxr3DV0rklb33iS58Mksg66LOSnWFQw&s";
+const DefaultAvatar = [
+  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ4rKRQxr3DV0rklb33iS58Mksg66LOSnWFQw&s",
+  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQFDkJUFqMsrpTau0Uppfd9Moiguym4B2bcfA&s",
+  "https://www.avatarsinpixels.com/Public/images/previews/minipix6.png",
+];
 
 export class User {
   constructor(
@@ -11,7 +14,7 @@ export class User {
     private username: string,
     private position: Position,
     private socket: WebSocket,
-    private avatar: string = DefaultAvatar,
+    private avatar: string = DefaultAvatar[2],
     private roomId: string = "lobby"
   ) {
     RoomManager.getInstance().addToLobby(this);
@@ -49,7 +52,7 @@ export class User {
     const dx = Math.abs(position.x - this.position.x);
     const dy = Math.abs(position.y - this.position.y);
 
-    if (true||(dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+    if (true || (dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
       this.position = position;
       return true;
     }

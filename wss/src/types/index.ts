@@ -13,7 +13,6 @@ interface Message {
   type: string;
   payload: any;
 }
-
 export interface IncomingMessage extends Message {
   type: "JOIN_ROOM" | "LEAVE_ROOM" | "MOVEMENT" | "CHAT";
   payload: {
@@ -24,7 +23,6 @@ export interface IncomingMessage extends Message {
     error?: string;
   };
 }
-
 export interface OutgoingMessage extends Message {
   type:
     | "ROOM_STATE"
@@ -43,6 +41,5 @@ export interface OutgoingMessage extends Message {
     position?: Position;
     roomId?: string;
     error?: string;
-    currentUserId?: string; // Add currentUserId
   };
 }

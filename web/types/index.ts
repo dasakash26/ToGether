@@ -47,7 +47,6 @@ export interface IncomingMessage extends Message {
     position?: Position;
     roomId?: string;
     error?: string;
-    currentUserId?: string; // Add currentUserId
   };
 }
 
