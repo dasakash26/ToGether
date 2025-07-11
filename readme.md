@@ -1,8 +1,10 @@
 # ToGether 
 
 ## TODO:
-- [ ] show user avatar
-- [ ] fix chat
+- [x] fix chat
 - [ ] add auth
+- [ ] make ws end point secured
 - [ ] make dashboard
+- [ ] create maps
+- [ ] show user avatar
 - [ ] add video audio
