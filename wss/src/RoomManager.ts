@@ -15,10 +15,10 @@ export class RoomManager {
     return this.instance ?? (this.instance = new RoomManager());
   }
 
-  createRoom(roomName: string): Room {
-    const roomId = createId();
-    const room = new Room(roomId, roomName);
-    this.rooms.set(roomId, room);
+  createRoom(roomName: string, roomId?: string): Room {
+    const id = roomId || createId();
+    const room = new Room(id, roomName);
+    this.rooms.set(id, room);
 
     return room;
   }
@@ -30,7 +30,7 @@ export class RoomManager {
   addUserToRoom(roomId: string, user: User): void {
     let room = this.getRoom(roomId);
     if (!room) {
-      room = this.createRoom(roomId);
+      room = this.createRoom(roomId, roomId);
     }
     room.addUser(user);
   }

@@ -17,6 +17,13 @@ export default function Room() {
   const gameLoopRef = useRef<number | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
+  // Refs to store current state values for game loop
+  const usersRef = useRef<UserData[]>([]);
+  const currentUserRef = useRef<UserData | null>(null);
+  const currentUserIdRef = useRef<string | null>(null);
+  const keysRef = useRef<Set<string>>(new Set());
+  const nearbyUsersRef = useRef<UserData[]>([]);
+
   const [roomId] = useState(params.id as string);
   const [users, setUsers] = useState<UserData[]>([]);
   const [currentUser, setCurrentUser] = useState<UserData | null>(null);
@@ -28,6 +35,27 @@ export default function Room() {
   const [keys, setKeys] = useState<Set<string>>(new Set());
   const [nearbyUsers, setNearbyUsers] = useState<UserData[]>([]);
 
+  // Update refs when state changes
+  useEffect(() => {
+    usersRef.current = users;
+  }, [users]);
+
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId;
+  }, [currentUserId]);
+
+  useEffect(() => {
+    keysRef.current = keys;
+  }, [keys]);
+
+  useEffect(() => {
+    nearbyUsersRef.current = nearbyUsers;
+  }, [nearbyUsers]);
+
   const GRID_SIZE = 40;
   const CANVAS_WIDTH = 800;
   const CANVAS_HEIGHT = 600;
@@ -36,6 +64,7 @@ export default function Room() {
 
   // Helper function to generate user avatar/icon
   const getUserAvatar = (username: string) => {
+    //return avatar
     if (!username) return "?";
     return username.charAt(0).toUpperCase();
   };
@@ -56,6 +85,82 @@ export default function Room() {
       userId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) %
       colors.length;
     return colors[index];
+  };
+
+  const drawUserOnCanvas = (
+    ctx: CanvasRenderingContext2D,
+    user: UserData,
+    isCurrentUser: boolean
+  ) => {
+    const x = user.position.x;
+    const y = user.position.y;
+
+    console.log(
+      `Drawing user ${user.username} (ID: ${user.id}) at position (${x}, ${y}), isCurrentUser: ${isCurrentUser}`
+    );
+
+    // Draw user circle
+    ctx.beginPath();
+    ctx.arc(x, y, 20, 0, 2 * Math.PI);
+
+    if (isCurrentUser) {
+      // Use a solid color for current user instead of CSS variable
+      ctx.fillStyle = "#2563eb"; // blue-600
+      ctx.strokeStyle = "#2563eb";
+    } else {
+      // Use consistent color based on user ID
+      const colorMap = {
+        "bg-red-500": "#ef4444",
+        "bg-blue-500": "#3b82f6",
+        "bg-green-500": "#22c55e",
+        "bg-purple-500": "#a855f7",
+        "bg-orange-500": "#f97316",
+        "bg-pink-500": "#ec4899",
+        "bg-indigo-500": "#6366f1",
+        "bg-teal-500": "#14b8a6",
+      };
+      const userColorClass = getUserColor(user.id);
+      const userColor =
+        colorMap[userColorClass as keyof typeof colorMap] || "#6b7280";
+      ctx.fillStyle = userColor;
+      ctx.strokeStyle = userColor;
+    }
+
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Draw user avatar/initial inside circle
+    ctx.fillStyle = "white";
+    ctx.font = "bold 14px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(getUserAvatar(user.username), x, y);
+
+    // Draw username below
+    ctx.fillStyle = "#374151"; // gray-700
+    ctx.font = "12px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText(user.username, x, y + 25);
+
+    // Draw "You" indicator for current user
+    if (isCurrentUser) {
+      ctx.fillStyle = "#2563eb"; // blue-600
+      ctx.font = "bold 10px Arial";
+      ctx.fillText("(You)", x, y + 40);
+    }
+
+    // Draw interaction circle if nearby
+    if (isCurrentUser && nearbyUsersRef.current.length > 0) {
+      ctx.beginPath();
+      ctx.arc(x, y, INTERACTION_DISTANCE, 0, 2 * Math.PI);
+      ctx.strokeStyle = "#22c55e";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
   };
 
   useEffect(() => {
@@ -94,9 +199,112 @@ export default function Room() {
   // Game loop
   useEffect(() => {
     const gameLoop = () => {
-      handleMovement();
-      updateNearbyUsers();
-      drawGame();
+      // Movement handling
+      if (currentUserRef.current && wsRef.current) {
+        let newX = currentUserRef.current.position.x;
+        let newY = currentUserRef.current.position.y;
+
+        const keys = keysRef.current;
+        if (keys.has("w") || keys.has("arrowup")) newY -= MOVE_SPEED;
+        if (keys.has("s") || keys.has("arrowdown")) newY += MOVE_SPEED;
+        if (keys.has("a") || keys.has("arrowleft")) newX -= MOVE_SPEED;
+        if (keys.has("d") || keys.has("arrowright")) newX += MOVE_SPEED;
+
+        newX = Math.max(20, Math.min(CANVAS_WIDTH - 20, newX));
+        newY = Math.max(20, Math.min(CANVAS_HEIGHT - 20, newY));
+
+        if (
+          newX !== currentUserRef.current.position.x ||
+          newY !== currentUserRef.current.position.y
+        ) {
+          const newPosition = { x: newX, y: newY };
+          setCurrentUser((prev) =>
+            prev ? { ...prev, position: newPosition } : null
+          );
+
+          wsRef.current.send(
+            JSON.stringify({
+              type: "MOVEMENT",
+              payload: { position: newPosition },
+            })
+          );
+        }
+      }
+
+      // Update nearby users
+      if (currentUserRef.current) {
+        const nearby = usersRef.current.filter((user) => {
+          if (user.id === currentUserIdRef.current) return false;
+
+          const distance = Math.sqrt(
+            Math.pow(user.position.x - currentUserRef.current!.position.x, 2) +
+              Math.pow(user.position.y - currentUserRef.current!.position.y, 2)
+          );
+
+          return distance <= INTERACTION_DISTANCE;
+        });
+
+        setNearbyUsers(nearby);
+      }
+
+      // Drawing
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          // Clear canvas
+          ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+          // Draw background with theme colors
+          ctx.fillStyle = "#fafafa";
+          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+          // Draw grid with theme colors
+          ctx.strokeStyle = "#e4e4e7";
+          ctx.lineWidth = 1;
+          for (let x = 0; x <= CANVAS_WIDTH; x += GRID_SIZE) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, CANVAS_HEIGHT);
+            ctx.stroke();
+          }
+          for (let y = 0; y <= CANVAS_HEIGHT; y += GRID_SIZE) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(CANVAS_WIDTH, y);
+            ctx.stroke();
+          }
+
+          console.log(
+            "Drawing users:",
+            usersRef.current.length,
+            "users:",
+            usersRef.current
+          );
+          console.log("Current user ID:", currentUserIdRef.current);
+
+          // Draw all users from the users array
+          usersRef.current.forEach((user) => {
+            const isCurrentUser = user.id === currentUserIdRef.current;
+            console.log(
+              "Drawing user:",
+              user.username,
+              "isCurrentUser:",
+              isCurrentUser,
+              "position:",
+              user.position
+            );
+            drawUserOnCanvas(ctx, user, isCurrentUser);
+          });
+
+          // Debug: Draw a test circle to ensure canvas is working
+          ctx.beginPath();
+          ctx.arc(50, 50, 10, 0, 2 * Math.PI);
+          ctx.fillStyle = "red";
+          ctx.fill();
+        }
+      }
+
       gameLoopRef.current = requestAnimationFrame(gameLoop);
     };
 
@@ -107,7 +315,7 @@ export default function Room() {
         cancelAnimationFrame(gameLoopRef.current);
       }
     };
-  }, []); // Fixed: Add empty dependency array to prevent infinite loop
+  }, []); // Empty dependency array but we use refs to access current values
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
