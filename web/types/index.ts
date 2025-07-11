@@ -2,6 +2,7 @@ export interface Position {
   x: number;
   y: number;
 }
+
 export interface UserData {
   id: string;
   username: string;
@@ -9,15 +10,17 @@ export interface UserData {
   avatar?: string;
   roomId?: string | null;
 }
+
 interface Message {
   type: string;
   payload: any;
 }
 
-export interface IncomingMessage extends Message {
+// Messages sent FROM client TO server
+export interface OutgoingMessage extends Message {
   type: "JOIN_ROOM" | "LEAVE_ROOM" | "MOVEMENT" | "CHAT";
   payload: {
-    user: UserData;
+    user?: UserData;
     roomId?: string;
     message?: string;
     position?: Position;
@@ -25,7 +28,8 @@ export interface IncomingMessage extends Message {
   };
 }
 
-export interface OutgoingMessage extends Message {
+// Messages received BY client FROM server
+export interface IncomingMessage extends Message {
   type:
     | "ROOM_STATE"
     | "USER_JOINED"
@@ -45,4 +49,12 @@ export interface OutgoingMessage extends Message {
     error?: string;
     currentUserId?: string; // Add currentUserId
   };
+}
+
+export interface ChatMessage {
+  id: string;
+  userId: string;
+  username: string;
+  message: string;
+  timestamp: number;
 }
