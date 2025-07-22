@@ -14,9 +14,10 @@ interface Message {
   payload: any;
 }
 export interface IncomingMessage extends Message {
-  type: "JOIN_ROOM" | "LEAVE_ROOM" | "MOVEMENT" | "CHAT";
+  type:  "JOIN_ROOM" | "LEAVE_ROOM" | "MOVEMENT" | "CHAT";
   payload: {
-    user: UserData;
+    user?: UserData;
+    userId?: string;
     roomId?: string;
     message?: string;
     position?: Position;
@@ -33,6 +34,7 @@ export interface OutgoingMessage extends Message {
     | "CHAT"
     | "ERROR";
   payload: {
+    from?: string;
     users?: UserData[];
     user?: UserData;
     userId?: string;

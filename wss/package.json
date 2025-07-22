@@ -21,6 +21,9 @@
   },
   "dependencies": {
     "@paralleldrive/cuid2": "^2.2.2",
+    "@types/jsonwebtoken": "^9.0.10",
+    "dotenv": "^17.2.0",
+    "jsonwebtoken": "^9.0.2",
     "ws": "^8.18.3"
   }
 }

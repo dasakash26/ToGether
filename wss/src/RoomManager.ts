@@ -35,12 +35,9 @@ export class RoomManager {
     room.addUser(user);
   }
 
-  addToLobby(user: User): void {
-    this.addUserToRoom("lobby", user);
-    console.log(`User ${user.getId()} added to lobby`);
-  }
-
-  removeUserFromRoom(roomId: string, userId: string): void {
+  // Check: if forced check if caller admin or not
+  // Check: superAdmin of a room can't be removed forcefully
+  removeUserFromRoom(roomId: string, userId: string, forced:boolean = true): void {
     const room = this.getRoom(roomId);
     if (room) {
       room.removeUser(userId);
@@ -57,15 +54,6 @@ export class RoomManager {
     const room = this.getRoom(roomId);
     if (room) {
       room.updateUserPosition(userId, position);
-    } else {
-      console.warn(`Room with ID ${roomId} does not exist.`);
-    }
-  }
-
-  sendChatMessage(roomId: string, userId: string, chat: string): void {
-    const room = this.getRoom(roomId);
-    if (room) {
-      room.sendChatMessage(userId, chat);
     } else {
       console.warn(`Room with ID ${roomId} does not exist.`);
     }

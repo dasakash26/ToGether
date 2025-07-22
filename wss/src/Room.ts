@@ -2,19 +2,15 @@ import { OutgoingMessage } from "./types";
 import { User } from "./User";
 
 export class Room {
-  private users: Map<string, User>;
+  private users: Map<string, User>; // userId -> User mapping
+  private admins: Set<string>;
+  private superAdmin: string | null;
 
-  constructor(private id: string, private name: string) {
-    console.log(`Room created with ID: ${id} and Name: ${name}`);
+  constructor(private id: string, private name: string = "Together Room") {
+    console.log(`> Room created with ID: ${id} and Name: ${name}`);
     this.users = new Map<string, User>();
-  }
-
-  getId(): string {
-    return this.id;
-  }
-
-  getName(): string {
-    return this.name;
+    this.admins = new Set<string>();
+    this.superAdmin = null;
   }
 
   getUsers(): User[] {
@@ -29,32 +25,35 @@ export class Room {
     return this.users.size;
   }
 
-  isEmpty(): boolean {
-    return this.users.size === 0;
-  }
-
   addUser(user: User): void {
-    if (this.users.has(user.getId())) {
+    if (this.users.has(user.getUserData().id)) {
       console.warn(
-        `User with ID ${user.getId()} already exists in room ${this.id}`
+        `> User ${user.getUserData().username} already exists in room ${
+          this.id
+        }`
       );
       return;
     }
-    this.users.set(user.getId(), user);
+
+    if (this.users.size === 0) this.superAdmin = user.getUserData().id;
+
+    this.users.set(user.getUserData().id, user);
     user.joinRoom(this.id);
 
-    user.send({
+    // 1. sync state with the new user
+    this.notify(user.getUserData().id, {
       type: "ROOM_STATE",
       payload: {
-        users: this.getUsers().map((u) => u.getUser()),
+        users: this.getUsers().map((u) => u.getUserData()),
         roomId: this.id,
       },
     });
 
-    this.broadcast({
+    // 2. notify others about the new user
+    this.notifyOthers(user.getUserData().id, {
       type: "USER_JOINED",
       payload: {
-        user: user.getUser(),
+        user: user.getUserData(),
         roomId: this.id,
       },
     });
@@ -63,13 +62,19 @@ export class Room {
   removeUser(userId: string): void {
     const user = this.users.get(userId);
     if (user) {
+      if (user.getUserData().id == this.superAdmin) {
+        //make someone other admin superAdmin
+        this.admins.delete(userId);
+        this.superAdmin = [...this.admins][0];
+      }
+
       user.leaveRoom();
       this.users.delete(userId);
 
-      this.broadcast({
+      this.notifyAll({
         type: "USER_LEFT",
         payload: {
-          user: user.getUser(),
+          user: user.getUserData(),
           roomId: this.id,
         },
       });
@@ -84,7 +89,7 @@ export class Room {
     }
 
     if (user.updatePosition(position)) {
-      this.broadcast({
+      this.notifyAll({
         type: "MOVEMENT",
         payload: {
           userId: userId,
@@ -93,7 +98,7 @@ export class Room {
         },
       });
     } else {
-      user.send({
+      this.notify(userId, {
         type: "MOVEMENT_REJECTED",
         payload: {
           error: "Invalid movement",
@@ -104,28 +109,56 @@ export class Room {
     }
   }
 
-  sendChatMessage(userId: string, chat: string): void {
-    const user = this.users.get(userId);
-    if (!user) {
+  notify(userId: string, message: OutgoingMessage): void {
+    const user = this.getUser(userId);
+    if (user) {
+      user.send(message);
+    } else {
       console.warn(`User with ID ${userId} not found in room ${this.id}`);
-      return;
     }
+  }
 
-    this.broadcast({
-      type: "CHAT",
-      payload: {
-        userId: userId,
-        username: user.getUser().username,
-        chat,
-        roomId: this.id,
-      },
+  notifyOthers(userId: string, message: OutgoingMessage): void {
+    this.users.forEach((user) => {
+      if (user.getUserData().id !== userId) {
+        user.send(message);
+      }
     });
   }
 
-  broadcast(message: OutgoingMessage): void {
+  notifyAll(message: OutgoingMessage): void {
     this.users.forEach((user) => {
       user.send(message);
     });
+  }
+
+  isAdmin(userId: string): boolean {
+    return this.admins.has(userId);
+  }
+
+  isSuperAdmin(userId: string): boolean {
+    return this.superAdmin === userId;
+  }
+
+  // Check : if the caller user is admin
+  setAdmin(userId: string): void {
+    if (this.users.has(userId)) {
+      if (this.admins.size == 0) this.superAdmin = userId;
+      this.admins.add(userId);
+      console.log(`> User ${userId} set as admin in room ${this.name}`);
+    } else {
+      console.warn(`> User ${userId} not found in room ${this.name}`);
+    }
+  }
+
+  // Check : if the caller user is admin
+  demoteAdmin(userId: string): void {
+    if (this.admins.has(userId)) {
+      this.admins.delete(userId);
+      console.log(`> User ${userId} demoted from admin in room ${this.name}`);
+    } else {
+      console.warn(`> User ${userId} is not an admin in room ${this.name}`);
+    }
   }
 
   destroy(): void {
@@ -133,6 +166,6 @@ export class Room {
       user.leaveRoom();
     });
     this.users.clear();
-    console.log(`Room ${this.name} (${this.id}) destroyed`);
+    console.warn(`> Room ${this.name} (${this.id}) destroyed`);
   }
 }
