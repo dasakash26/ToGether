@@ -5,7 +5,7 @@ import WebSocket from "ws";
 import { RoomManager } from "./RoomManager";
 import { IncomingMessage } from "./types";
 import cuid2 from "@paralleldrive/cuid2";
-import dotenv from "dotenv"
+import dotenv from "dotenv";
 dotenv.config();
 
 const jwtSecret = process.env.JWT_SECRET;
@@ -22,45 +22,19 @@ export function generateSpawnPosition(): Position {
 
 export function handleConnection(
   ws: WebSocket,
-  urlString: string | undefined,  
+  urlString: string | undefined,
+  claims?: JwtPayload
 ): User | null {
-  
-  if (!jwtSecret||!port) {
+  if (!jwtSecret || !port) {
     console.error("> JWT_SECRET and PORT environment variable must be set");
     process.exit(1);
   }
 
-  let token: string | null = null;
-
-  if (urlString) {
-    try {
-      const url = new URL(urlString, `http://localhost:${port}`);
-      token = url.searchParams.get("token");
-    } catch (e) {
-      console.warn("Error parsing URL:", e);
-    }
-  }
-
-  if (!token) {
-    console.warn("No token provided, closing connection");
-    ws.close(4000, "Authentication required");
+  if (!claims || !claims.username) {
+    console.error("> Invalid JWT claims");
     return null;
   }
 
-  let claims: JwtPayload;
-  try {
-    const decoded = verify(token, jwtSecret!);
-    if (typeof decoded === "string") {
-      throw new Error("Unexpected token payload");
-    }
-    claims = decoded;
-  } catch (err: any) {
-    console.warn("JWT verification failed:", err.message);
-    ws.close(4001, "Invalid token");
-    return null;
-  }
-
-  // Create the User
   const { username, avatar } = claims;
   const spawnPos = generateSpawnPosition();
   const id = cuid2.createId();
@@ -76,14 +50,10 @@ export function handleMessage(user: User, rawMessage: string): void {
     console.log("> ", message.type);
     switch (message.type) {
       case "JOIN_ROOM": {
-        const roomId = message.payload.roomId;
-        console.log(
-          "JOIN_ROOM received for room:",
-          roomId,
-          "user:",
-          user.getUserData().username
-        );
-
+        const {roomId, position } = message.payload;
+        if(position){
+          user.setPosition(position);
+        }
         if (roomId) {
           roomManagerInstance.addUserToRoom(roomId, user);
           console.log(

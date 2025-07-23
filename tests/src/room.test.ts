@@ -24,8 +24,8 @@ describe("Room Management", () => {
     // Join room using helper function
     const joinMessage = await joinRoom(ws, TEST_ROOMS.DEFAULT, 100, 100);
 
-    expect(joinMessage.type).toBe("USER_JOINED");
-    expect(joinMessage.username).toBe("testuser1");
+    expect(joinMessage.type).toBe("ROOM_STATE");
+    expect(joinMessage.payload.roomId).toEqual(TEST_ROOMS.DEFAULT);
   });
 
   it("correctly handles two users joining the same room simultaneously", async () => {

@@ -1,18 +1,52 @@
 import WebSocket, { WebSocketServer } from "ws";
 import { handleConnection, handleMessage } from "./Utils";
 import dotenv from "dotenv";
+import { IncomingMessage } from "http";
+import { verify } from "jsonwebtoken";
 dotenv.config();
 
 const port = Number(process.env.PORT);
-const wss = new WebSocketServer({ port });
+const jwtSecret = process.env.JWT_SECRET;
+
+const wss = new WebSocketServer({
+  port,
+  verifyClient: (info: {
+    origin: string;
+    secure: boolean;
+    req: IncomingMessage;
+  }) => {
+    try {
+      const url = new URL(info.req.url!, `http://localhost:${port}`);
+      const token = url.searchParams.get("token");
+
+      if (!token || !jwtSecret) {
+        return false;
+      }
+
+      const decoded = verify(token, jwtSecret);
+      if (typeof decoded === "string") {
+        return false;
+      }
+
+      (info.req as any).decodedToken = decoded;
+      return true;
+    } catch (err) {
+      return false;
+    }
+  },
+});
 let intervalId: NodeJS.Timeout;
 
 wss.on("connection", (ws, req) => {
   console.log("Client connected");
-  const user = handleConnection(ws, req.url);
+
+  const decodedToken = (req as any).decodedToken;
+  const user = handleConnection(ws, req.url, decodedToken);
   if (!user) {
+    ws.close(4000, "Authentication failed");
     return;
   }
+
   //@ts-ignore
   ws.isAlive = true;
 

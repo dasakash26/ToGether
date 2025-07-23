@@ -16,11 +16,5 @@ import { SERVER_URL } from "./helpers";
 describe("Integration Tests", () => {
   it("should have valid server configuration", () => {
     expect(SERVER_URL).toBeDefined();
-    expect(SERVER_URL).toContain("localhost:4000");
-  });
-
-  it("should have all test modules imported", () => {
-    // This test ensures all modules are properly loaded
-    expect(true).toBe(true);
   });
 });

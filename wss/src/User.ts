@@ -22,6 +22,11 @@ export class User {
     };
   }
 
+  setPosition(position: Position): void {
+    // will only be used for initial spawn position
+    this.position = position;
+  }
+
   updatePosition(position: Position): boolean {
     const dx = Math.abs(position.x - this.position.x);
     const dy = Math.abs(position.y - this.position.y);

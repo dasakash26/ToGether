@@ -31,7 +31,6 @@ export function createAuthenticatedConnection(
   return new WebSocket(`${SERVER_URL}?token=${token}`);
 }
 
-// Helper function to wait for WebSocket message
 export function waitForMessage(
   ws: WebSocket,
   expectedType?: string,
@@ -71,7 +70,6 @@ export function waitForMessage(
   });
 }
 
-// Helper function to wait for WebSocket connection to open
 export function waitForConnection(ws: WebSocket): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     if (ws.readyState === WebSocket.OPEN) {
@@ -95,28 +93,25 @@ export function waitForConnection(ws: WebSocket): Promise<void> {
   });
 }
 
-// Helper function to join a room and wait for confirmation
 export function joinRoom(
   ws: WebSocket,
   roomId: string,
   x: number = 100,
   y: number = 100
 ): Promise<any> {
+  const position = { x, y };
   return new Promise((resolve, reject) => {
     ws.send(
       JSON.stringify({
         type: "JOIN_ROOM",
-        roomId,
-        x,
-        y,
+        payload: { roomId, position },
       })
     );
 
-    waitForMessage(ws, "USER_JOINED", 2000).then(resolve).catch(reject);
+    waitForMessage(ws, "ROOM_STATE", 2000).then(resolve).catch(reject);
   });
 }
 
-// Helper function to send movement and wait for confirmation
 export function sendMovement(
   ws: WebSocket,
   x: number,
@@ -131,12 +126,10 @@ export function sendMovement(
       })
     );
 
-    // Movement doesn't send back confirmation, just resolve
     setTimeout(resolve, 100);
   });
 }
 
-// Helper function to send chat message
 export function sendChatMessage(ws: WebSocket, message: string): Promise<void> {
   return new Promise((resolve, reject) => {
     ws.send(
@@ -146,12 +139,10 @@ export function sendChatMessage(ws: WebSocket, message: string): Promise<void> {
       })
     );
 
-    // Chat doesn't send back confirmation to sender, just resolve
     setTimeout(resolve, 100);
   });
 }
 
-// Helper function to cleanup WebSocket connections
 export function cleanupConnections(connections: WebSocket[]): void {
   connections.forEach((ws) => {
     if (ws.readyState === WebSocket.OPEN) {
