@@ -7,6 +7,7 @@ import {
   sendChatMessage,
   cleanupConnections,
   TEST_ROOMS,
+  waitForMessage,
 } from "./helpers";
 
 describe("Chat System", () => {
@@ -43,12 +44,7 @@ describe("Chat System", () => {
     await joinRoom(ws, TEST_ROOMS.CHAT, 100, 100);
 
     // Send empty message
-    ws.send(
-      JSON.stringify({
-        type: "CHAT",
-        message: "",
-      })
-    );
+    await sendChatMessage(ws, "");
 
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(ws.readyState).toBe(WebSocket.OPEN);
@@ -77,14 +73,16 @@ describe("Chat System", () => {
     await waitForConnection(ws);
 
     // Try to send chat without joining room
-    ws.send(
-      JSON.stringify({
-        type: "CHAT",
-        message: "Hello from outside!",
-      })
-    );
+    await sendChatMessage(ws, "This should not be sent");
 
     await new Promise((resolve) => setTimeout(resolve, 500));
+
+    ws.on("message", (data) => {
+      const message = JSON.parse(data.toString());
+      expect(message.type).toBe("ERROR");
+      expect(message.payload.error).toBe("Not in a room or empty message");
+    });
+
     expect(ws.readyState).toBe(WebSocket.OPEN);
   });
 

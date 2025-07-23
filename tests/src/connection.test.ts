@@ -66,7 +66,6 @@ describe("Connection Management", () => {
       })
     );
 
-    // Both should receive valid room states
     const [state1, state2] = await Promise.all([
       waitForMessage(ws1, "ROOM_STATE"),
       waitForMessage(ws2, "ROOM_STATE"),

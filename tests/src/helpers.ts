@@ -121,8 +121,7 @@ export function sendMovement(
     ws.send(
       JSON.stringify({
         type: "MOVEMENT",
-        x,
-        y,
+        payload: { position: { x, y } },
       })
     );
 
@@ -135,7 +134,7 @@ export function sendChatMessage(ws: WebSocket, message: string): Promise<void> {
     ws.send(
       JSON.stringify({
         type: "CHAT",
-        message,
+        payload: { message },
       })
     );
 

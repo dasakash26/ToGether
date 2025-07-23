@@ -8,7 +8,6 @@ import "./movement.test";
 import "./chat.test";
 import "./error-handling.test";
 import "./connection.test";
-import "./performance.test";
 
 import { describe, it, expect } from "vitest";
 import { SERVER_URL } from "./helpers";

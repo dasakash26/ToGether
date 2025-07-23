@@ -7,6 +7,7 @@ import {
   sendMovement,
   cleanupConnections,
   TEST_ROOMS,
+  waitForMessage,
 } from "./helpers";
 
 describe("Movement System", () => {
@@ -67,13 +68,7 @@ describe("Movement System", () => {
     await waitForConnection(ws);
 
     // Try to move without joining room
-    ws.send(
-      JSON.stringify({
-        type: "MOVEMENT",
-        x: 200,
-        y: 200,
-      })
-    );
+    await sendMovement(ws, 150, 150);
 
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(ws.readyState).toBe(WebSocket.OPEN);
@@ -113,7 +108,10 @@ describe("Movement System", () => {
       })
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    const message = await waitForMessage(ws, "ERROR", 2000);
+
+    expect(message.type).toBe("ERROR");
+    expect(message.payload.error).toBe("Not in a room or invalid position");
     expect(ws.readyState).toBe(WebSocket.OPEN);
   });
 });

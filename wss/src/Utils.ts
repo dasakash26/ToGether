@@ -45,9 +45,18 @@ export function handleConnection(
 
 export function handleMessage(user: User, rawMessage: string): void {
   try {
-    const message: IncomingMessage = JSON.parse(rawMessage);
+    let message: IncomingMessage;
+    try {
+      message = JSON.parse(rawMessage);
+    } catch (err) {
+      user.send({
+        type: "ERROR",
+        payload: { error: "Invalid message format" },
+      });
+      return;
+    }
     const roomManagerInstance = RoomManager.getInstance();
-    console.log("> ", message.type);
+    console.log("> ", message);
     switch (message.type) {
       case "JOIN_ROOM": {
         const {roomId, position } = message.payload;
@@ -82,7 +91,7 @@ export function handleMessage(user: User, rawMessage: string): void {
 
       case "MOVEMENT": {
         const userData = user.getUserData();
-        const position = message.payload.position;
+        const position = message.payload?.position;
 
         if (userData.roomId && position) {
           roomManagerInstance.updateUserPosition(
@@ -101,7 +110,7 @@ export function handleMessage(user: User, rawMessage: string): void {
 
       case "CHAT": {
         const userData = user.getUserData();
-        const chatMessage = message.payload.message;
+        const chatMessage = message.payload?.message;
         const sendTo = message.payload.userId;
         if (userData.roomId && chatMessage) {
           if (sendTo) {
