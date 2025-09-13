@@ -1,146 +1,154 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { UserData } from "@/types";
-import {
-  getUserColor,
-  getColorHex,
-  getUserAvatar,
-  GRID_SIZE,
-  CANVAS_WIDTH,
-  CANVAS_HEIGHT,
-  INTERACTION_DISTANCE,
-} from "@/lib/room-utils";
-
-interface GameCanvasProps {
-  canvasRef: React.RefObject<HTMLCanvasElement | null>;
-  users: UserData[];
-  currentUserId: string | null;
-  nearbyUsers: UserData[];
-}
+import { UserData, GameCanvasProps } from "@/types";
+import { CANVAS_WIDTH, CANVAS_HEIGHT } from "@/lib/room-utils";
+import { BackgroundRenderer, UserRenderer } from "@/lib/canvas-renderers";
+import { useCanvasAnimation, useImageLoader } from "@/hooks/useCanvas";
 
 export function GameCanvas({
   canvasRef,
   users,
   currentUserId,
   nearbyUsers,
+  zoom,
 }: GameCanvasProps) {
-  const [userImage, setUserImage] = useState<HTMLImageElement | null>(null);
-  useEffect(() => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => setUserImage(img);
-    img.src =
-      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQFDkJUFqMsrpTau0Uppfd9Moiguym4B2bcfA&s";
-    return () => {
-      setUserImage(null);
-    };
-  }, []);
+  const [camera, setCamera] = useState({ x: 0, y: 0 });
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
-  const drawUser = useCallback(
-    (ctx: CanvasRenderingContext2D, user: UserData, isCurrentUser: boolean) => {
-      const x = user.position.x;
-      const y = user.position.y;
-
-      ctx.beginPath();
-      ctx.arc(x, y, 20, 0, 2 * Math.PI);
-
-      if (isCurrentUser) {
-        ctx.fillStyle = "#2563eb";
-        ctx.strokeStyle = "#2563eb";
-      } else {
-        const userColorClass = getUserColor(user.id);
-        const userColor = getColorHex(userColorClass);
-        ctx.fillStyle = userColor;
-        ctx.strokeStyle = userColor;
-      }
-
-      ctx.fill();
-      ctx.lineWidth = 3;
-      ctx.stroke();
-
-      if (userImage) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(x, y, 18, 0, 2 * Math.PI);
-        ctx.clip();
-        ctx.drawImage(userImage, x - 18, y - 18, 36, 36);
-        ctx.restore();
-      } else {
-        ctx.fillStyle = "white";
-        ctx.font = "bold 14px Arial";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(getUserAvatar(user.username), x, y);
-      }
-
-      ctx.fillStyle = "#374151";
-      ctx.font = "12px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      ctx.fillText(user.username, x, y + 25);
-
-      if (isCurrentUser) {
-        ctx.fillStyle = "#2563eb";
-        ctx.font = "bold 10px Arial";
-        ctx.fillText("(You)", x, y + 40);
-      }
-
-      if (isCurrentUser && nearbyUsers.length > 0) {
-        ctx.beginPath();
-        ctx.arc(x, y, INTERACTION_DISTANCE, 0, 2 * Math.PI);
-        ctx.strokeStyle = "#22c55e";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-    },
-    [nearbyUsers, userImage]
+  const {
+    image: userImage,
+    loading,
+    error,
+  } = useImageLoader(
+    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQFDkJUFqMsrpTau0Uppfd9Moiguym4B2bcfA&s"
   );
+
+  useEffect(() => {
+    const updateCanvasSize = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const container = canvas.parentElement;
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      let width = rect.width;
+      let height = rect.height;
+
+      if (width <= 0 || height <= 0) {
+        width = window.innerWidth;
+        height = window.innerHeight - 88;
+      }
+
+      const maxWidth = window.innerWidth;
+      const maxHeight = window.innerHeight - 88;
+
+      width = Math.min(width, maxWidth);
+      height = Math.min(height, maxHeight);
+
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.scale(dpr, dpr);
+      }
+
+      setCanvasSize({ width, height });
+    };
+
+    const timeoutId = setTimeout(updateCanvasSize, 0);
+
+    window.addEventListener("resize", updateCanvasSize);
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener("resize", updateCanvasSize);
+    };
+  }, [canvasRef]);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const currentUser = users.find((user) => user.id === currentUserId);
+    if (!currentUser || canvasSize.width === 0 || canvasSize.height === 0)
+      return;
+
+    const targetCameraX = currentUser.position.x - canvasSize.width / 2 / zoom;
+    const targetCameraY = currentUser.position.y - canvasSize.height / 2 / zoom;
+
+    const minCameraX = 0;
+    const maxCameraX = Math.max(0, CANVAS_WIDTH - canvasSize.width / zoom);
+    const minCameraY = 0;
+    const maxCameraY = Math.max(0, CANVAS_HEIGHT - canvasSize.height / zoom);
+
+    const clampedX = Math.max(minCameraX, Math.min(maxCameraX, targetCameraX));
+    const clampedY = Math.max(minCameraY, Math.min(maxCameraY, targetCameraY));
+
+    setCamera({ x: clampedX, y: clampedY });
+  }, [users, currentUserId, zoom, canvasSize]);
 
   const drawGame = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || canvasSize.width === 0 || canvasSize.height === 0) return;
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
 
-    ctx.fillStyle = "#fafafa";
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.save();
+    ctx.scale(zoom, zoom);
+    ctx.translate(-camera.x, -camera.y);
 
-    ctx.strokeStyle = "#e4e4e7";
-    ctx.lineWidth = 1;
-    for (let x = 0; x <= CANVAS_WIDTH; x += GRID_SIZE) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, CANVAS_HEIGHT);
-      ctx.stroke();
-    }
-    for (let y = 0; y <= CANVAS_HEIGHT; y += GRID_SIZE) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(CANVAS_WIDTH, y);
-      ctx.stroke();
-    }
+    BackgroundRenderer.renderOfficeSpace(ctx);
 
     users.forEach((user) => {
       const isCurrentUser = user.id === currentUserId;
-      drawUser(ctx, user, isCurrentUser);
-    });
-  }, [users, currentUserId, drawUser, canvasRef]);
+      const hasNearbyUsers = isCurrentUser && nearbyUsers.length > 0;
 
-  useEffect(() => {
-    drawGame();
-  }, [drawGame]);
+      UserRenderer.render(ctx, user, isCurrentUser, hasNearbyUsers, userImage);
+    });
+
+    BackgroundRenderer.renderTitle(ctx);
+
+    ctx.restore();
+  }, [
+    users,
+    currentUserId,
+    nearbyUsers,
+    userImage,
+    canvasRef,
+    zoom,
+    camera,
+    canvasSize,
+  ]);
+
+  useCanvasAnimation({
+    drawFunction: drawGame,
+    dependencies: [
+      users,
+      currentUserId,
+      nearbyUsers,
+      userImage,
+      zoom,
+      camera,
+      canvasSize,
+    ],
+  });
+
+  if (error) {
+    console.warn("Failed to load user image:", error);
+  }
 
   return (
     <canvas
       ref={canvasRef}
-      width={CANVAS_WIDTH}
-      height={CANVAS_HEIGHT}
-      className="border-0 rounded-lg focus:outline-none"
+      className="border-0 rounded-lg focus:outline-none w-full h-full block max-w-full max-h-full"
       tabIndex={0}
     />
   );

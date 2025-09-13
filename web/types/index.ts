@@ -11,6 +11,14 @@ export interface UserData {
   roomId?: string | null;
 }
 
+export interface GameCanvasProps {
+  canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  users: UserData[];
+  currentUserId: string | null;
+  nearbyUsers: UserData[];
+  zoom: number;
+}
+
 interface Message {
   type: string;
   payload: any;

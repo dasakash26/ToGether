@@ -30,18 +30,17 @@ export class User {
     const dx = Math.abs(position.x - this.position.x);
     const dy = Math.abs(position.y - this.position.y);
 
-    if (dx <= 100000 && dy <= 100000 && (dx > 0 || dy > 0)) {
-      let newX = position.x;
-      let newY = position.y;
+    // if (dx <= 100000 && dy <= 100000 && (dx > 0 || dy > 0)) {
+    let newX = position.x;
+    let newY = position.y;
 
-      newX = Math.max(20, Math.min(780, newX));
-      newY = Math.max(20, Math.min(580, newY));
+    newX = Math.max(20, Math.min(780, newX));
+    newY = Math.max(20, Math.min(580, newY));
 
-      this.position = { x: newX, y: newY };
-      return true;
-    }
+    this.position = { x: newX, y: newY };
+    return true;
 
-    return false;
+    // return false;
   }
 
   send(message: OutgoingMessage): void {

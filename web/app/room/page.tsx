@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 
 import { GameCanvas } from "@/components/Room/GameCanvas";
-import { ChatPopup, ChatButton } from "@/components/Room/Chat";
 import { NearbyUsers } from "@/components/Room/NearbyUsers";
+import { ZoomControls } from "@/components/Room/ZoomControls";
+import { Sidebar } from "@/components/Room/Sidebar";
 import { RoomHeader } from "@/components/Room/RoomHeader";
+import { Footer } from "@/components/Room/Footer";
 import { useRoomLogic } from "@/hooks/useRoomLogic";
 
 function RoomContent() {
@@ -22,7 +24,10 @@ function RoomContent() {
   const roomId = roomIdFromUrl as string;
 
   const [chatInput, setChatInput] = useState("");
-  const [showChat, setShowChat] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const {
     users,
@@ -49,14 +54,21 @@ function RoomContent() {
   }, [chatMessages]);
 
   const handleSendChatMessage = () => {
-    sendChatMessage(chatInput);
-    setChatInput("");
+    if (chatInput.trim()) {
+      sendChatMessage(chatInput);
+      setChatInput("");
+    }
   };
 
   const handleLeaveRoom = () => {
     leaveRoom();
     router.push("/");
   };
+
+  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.1, 2));
+  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.1, 0.5));
+  const handleToggleMute = () => setIsMuted((prev) => !prev);
+  const handleToggleVideo = () => setIsVideoOff((prev) => !prev);
 
   if (!username?.trim()) {
     return (
@@ -79,7 +91,7 @@ function RoomContent() {
   }
 
   return (
-    <div className="h-screen bg-background flex flex-col">
+    <main className="h-screen bg-slate-950 flex flex-col overflow-hidden">
       <RoomHeader
         roomId={roomId}
         username={username}
@@ -88,36 +100,50 @@ function RoomContent() {
         onLeaveRoom={handleLeaveRoom}
       />
 
-      <div className="flex-1 flex">
-        <div className="flex-1 flex flex-col items-center justify-center p-4">
-          <div className="relative bg-card rounded-lg shadow-xl border-2">
+      <section className="flex-1 relative overflow-hidden">
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          chatMessages={chatMessages}
+          currentUserId={currentUserId}
+          chatInput={chatInput}
+          setChatInput={setChatInput}
+          sendChatMessage={handleSendChatMessage}
+          chatContainerRef={chatContainerRef}
+          users={users}
+        />
+
+        <section className="absolute inset-0 overflow-hidden">
+          <div className="w-full h-full relative overflow-hidden">
             <GameCanvas
               canvasRef={canvasRef}
               users={users}
               currentUserId={currentUserId}
               nearbyUsers={nearbyUsers}
+              zoom={zoom}
             />
+
+            <ZoomControls
+              zoom={zoom}
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+            />
+
             <NearbyUsers nearbyUsers={nearbyUsers} />
           </div>
-        </div>
-      </div>
+        </section>
+      </section>
 
-      <ChatButton
-        onClick={() => setShowChat(!showChat)}
-        messageCount={chatMessages.length}
-      />
-
-      <ChatPopup
-        chatMessages={chatMessages}
-        currentUserId={currentUserId}
-        chatInput={chatInput}
-        setChatInput={setChatInput}
-        sendChatMessage={handleSendChatMessage}
-        chatContainerRef={chatContainerRef}
-        isOpen={showChat}
-        onClose={() => setShowChat(false)}
-      />
-    </div>
+      <section className="h-18 flex-shrink-0">
+        <Footer
+          isMuted={isMuted}
+          isVideoOff={isVideoOff}
+          onToggleMute={handleToggleMute}
+          onToggleVideo={handleToggleVideo}
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+        />
+      </section>
+    </main>
   );
 }
 

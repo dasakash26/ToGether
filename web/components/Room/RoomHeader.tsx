@@ -23,165 +23,70 @@ export function RoomHeader({
   onLeaveRoom,
 }: RoomHeaderProps) {
   return (
-    <div className="bg-gradient-to-r from-card via-card/98 to-card/95 shadow-lg border-b border-border/50 backdrop-blur-md">
-      {/* Desktop Layout */}
-      <div className="hidden md:block">
-        <div className="px-6 py-4">
-          {/* Main Row - All Info */}
-          <div className="flex justify-between items-center">
-            {/* Left Side - Leave Button and Room Info with Status */}
-            <div className="flex items-center space-x-4">
-              <Button
-                size="sm"
-                onClick={onLeaveRoom}
-                variant="ghost"
-                className="hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-400 transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Leave Room
-              </Button>
-              <div className="h-6 w-px bg-border/50" />
-              <div className="flex items-center space-x-2">
-                <Badge
-                  variant={isConnected ? "default" : "neutral"}
-                  className={`flex items-center space-x-2 px-3 py-1 transition-all ${
-                    isConnected
-                      ? "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30 shadow-green-500/20"
-                      : "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30 shadow-red-500/20"
-                  }`}
-                >
-                  {isConnected ? (
-                    <Radio className="w-3 h-3 animate-pulse" />
-                  ) : (
-                    <WifiOff className="w-3 h-3" />
-                  )}
-                  <span className="font-medium">
-                    {roomId} • {isConnected ? "Connected" : "Disconnected"}
-                  </span>
-                </Badge>
-              </div>
-            </div>
+    <header className="bg-gradient-to-r from-background/95 via-background/90 to-background/95 border-b border-border/50 backdrop-blur-xl shadow-lg p-4">
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onLeaveRoom}
+            className="text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-all duration-200 flex-shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Leave
+          </Button>
 
-            {/* Right Side - User Info and Avatars */}
-            <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <h1 className="text-secondary-foreground font-semibold text-sm truncate">
+              ToGether Room #{roomId}
+            </h1>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
               <Badge
                 variant="default"
-                className="flex items-center space-x-2 px-3 py-1"
+                className={`text-xs ${
+                  isConnected
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
+                    : "bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20"
+                } transition-all duration-200 border`}
               >
-                <Users className="w-4 h-4" />
-                <span className="font-medium">
-                  {users.length === 1
-                    ? username
-                    : `${username} and ${users.length - 1} other${
-                        users.length - 1 === 1 ? "" : "s"
-                      }`}
-                </span>
+                {isConnected ? (
+                  <>
+                    <Radio className="w-3 h-3 mr-1" />
+                    Connected
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="w-3 h-3 mr-1" />
+                    Disconnected
+                  </>
+                )}
               </Badge>
-              {users.length > 0 && (
-                <div className="flex items-center space-x-1">
-                  {users.slice(0, 4).map((user, index) => (
-                    <Avatar
-                      key={user.id}
-                      className={`w-8 h-8 ring-2 ring-background transition-transform hover:scale-110 ${
-                        index > 0 ? "-ml-2" : ""
-                      }`}
-                      style={{ zIndex: users.length - index }}
-                    >
-                      <AvatarFallback
-                        className={`text-xs text-white font-semibold ${getUserColor(
-                          user.id
-                        )}`}
-                        title={user.username}
-                      >
-                        {getUserAvatar(user.username)}
-                      </AvatarFallback>
-                    </Avatar>
-                  ))}
-                  {users.length > 4 && (
-                    <div className="ml-1 text-xs text-muted-foreground bg-muted/80 px-2 py-1 rounded-full font-medium">
-                      +{users.length - 4}
-                    </div>
-                  )}
-                </div>
-              )}
+
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <Users className="w-3 h-3" />
+                <span className="text-xs font-medium">{users.length}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Mobile Layout */}
-      <div className="md:hidden">
-        <div className="px-4 py-3">
-          {/* Top Row - Leave Button and Room Status */}
-          <div className="flex justify-between items-center mb-3">
-            <Button
-              size="sm"
-              onClick={onLeaveRoom}
-              variant="ghost"
-              className="hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-400 transition-colors"
+        <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+          <p className="text-xs text-muted-foreground hidden sm:block">
+            Welcome,{" "}
+            <span className="text-foreground font-medium">{username}</span>
+          </p>
+          <Avatar className="w-8 h-8 ring-2 ring-primary/20 hover:ring-primary/40 transition-all duration-200">
+            <AvatarFallback
+              className={`text-xs font-semibold text-primary-foreground ${getUserColor(
+                username
+              )}`}
             >
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Leave
-            </Button>
-            <Badge
-              variant={isConnected ? "default" : "neutral"}
-              className={`flex items-center space-x-1 px-2 py-1 ${
-                isConnected
-                  ? "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30"
-                  : "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30"
-              }`}
-            >
-              {isConnected ? (
-                <Radio className="w-3 h-3 animate-pulse" />
-              ) : (
-                <WifiOff className="w-3 h-3" />
-              )}
-              <span className="text-xs font-medium">
-                {roomId} • {isConnected ? "Connected" : "Offline"}
-              </span>
-            </Badge>
-          </div>
-
-          {/* Bottom Row - User Info and Avatars */}
-          <div className="flex justify-between items-center">
-            <Badge variant="default" className="text-xs">
-              <Users className="w-3 h-3 mr-1" />
-              {users.length === 1
-                ? username
-                : `${username} & ${users.length - 1} other${
-                    users.length - 1 === 1 ? "" : "s"
-                  }`}
-            </Badge>
-            {users.length > 0 && (
-              <div className="flex items-center">
-                {users.slice(0, 3).map((user, index) => (
-                  <Avatar
-                    key={user.id}
-                    className={`w-6 h-6 ring-1 ring-background ${
-                      index > 0 ? "-ml-1" : ""
-                    }`}
-                    style={{ zIndex: users.length - index }}
-                  >
-                    <AvatarFallback
-                      className={`text-xs text-white font-medium ${getUserColor(
-                        user.id
-                      )}`}
-                      title={user.username}
-                    >
-                      {getUserAvatar(user.username)}
-                    </AvatarFallback>
-                  </Avatar>
-                ))}
-                {users.length > 3 && (
-                  <div className="ml-1 text-xs text-muted-foreground bg-muted/80 px-1 py-0.5 rounded-full">
-                    +{users.length - 3}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+              {getUserAvatar(username)}
+            </AvatarFallback>
+          </Avatar>
         </div>
       </div>
-    </div>
+    </header>
   );
 }
