@@ -300,6 +300,24 @@ export function useRoomLogic({ roomId, username }: UseRoomLogicProps) {
     updateNearbyUsers();
   }, [updateNearbyUsers]);
 
+  useEffect(()=>{
+    if (!isConnected) {
+      let tryCnt = 0;
+      const maxDelay = 30000; 
+
+      const attemptReconnect = () => {
+        const delay = Math.min(1000 * 2 ** tryCnt, maxDelay);
+        console.log(`Reconnection attempt ${tryCnt + 1} in ${delay}ms`);
+        setTimeout(() => {
+          connectWebSocket();
+          tryCnt++;
+        }, delay);
+      };
+      
+      attemptReconnect();
+    }
+  }, [isConnected, connectWebSocket]);
+
   const sendChatMessage = useCallback((message: string) => {
     if (message.trim() && wsRef.current) {
       wsRef.current.send(
