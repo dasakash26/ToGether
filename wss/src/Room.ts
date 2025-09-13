@@ -26,22 +26,42 @@ export class Room {
   }
 
   addUser(user: User): void {
-    if (this.users.has(user.getUserData().id)) {
+    const newUserData = user.getUserData();
+
+    let existingUserRemoved = false;
+    for (const [existingUserId, existingUser] of this.users) {
+      if (existingUser.getUserData().username === newUserData.username) {
+        console.log(
+          `> Removing existing user ${newUserData.username} with old ID ${existingUserId}`
+        );
+        this.removeUser(existingUserId);
+        existingUserRemoved = true;
+        break;
+      }
+    }
+
+    if (this.users.has(newUserData.id)) {
       console.warn(
-        `> User ${user.getUserData().username} already exists in room ${
-          this.id
-        }`
+        `> User ${newUserData.username} with ID ${newUserData.id} already exists in room ${this.id}`
       );
       return;
     }
 
-    if (this.users.size === 0) this.superAdmin = user.getUserData().id;
+    if (this.users.size === 0) {
+      this.superAdmin = newUserData.id;
+    }
 
-    this.users.set(user.getUserData().id, user);
+    this.users.set(newUserData.id, user);
     user.joinRoom(this.id);
 
+    console.log(
+      `> User ${newUserData.username} (${newUserData.id}) ${
+        existingUserRemoved ? "reconnected to" : "joined"
+      } room ${this.id}`
+    );
+
     // 1. sync state with the new user
-    this.notify(user.getUserData().id, {
+    this.notify(newUserData.id, {
       type: "ROOM_STATE",
       payload: {
         users: this.getUsers().map((u) => u.getUserData()),
@@ -49,36 +69,58 @@ export class Room {
       },
     });
 
-    // 2. notify others about the new user
-    this.notifyOthers(user.getUserData().id, {
-      type: "USER_JOINED",
-      payload: {
-        user: user.getUserData(),
-        roomId: this.id,
-      },
-    });
-  }
-
-  removeUser(userId: string): void {
-    const user = this.users.get(userId);
-    if (user) {
-      if (user.getUserData().id == this.superAdmin) {
-        //make someone other admin superAdmin
-        this.admins.delete(userId);
-        this.superAdmin = [...this.admins][0];
-      }
-
-      user.leaveRoom();
-      this.users.delete(userId);
-
-      this.notifyAll({
-        type: "USER_LEFT",
+    // 2. notify others about the new user (only if it's a new join, not a reconnect)
+    if (!existingUserRemoved) {
+      this.notifyOthers(newUserData.id, {
+        type: "USER_JOINED",
         payload: {
-          user: user.getUserData(),
+          user: newUserData,
           roomId: this.id,
         },
       });
     }
+  }
+
+  removeUser(userId: string): void {
+    const user = this.users.get(userId);
+    if (!user) {
+      console.warn(`User with ID ${userId} not found in room ${this.id}`);
+      return;
+    }
+
+    const userData = user.getUserData();
+
+    // Handle super admin transfer
+    if (userData.id === this.superAdmin) {
+      this.admins.delete(userId);
+      // Transfer super admin to another admin or the first remaining user
+      if (this.admins.size > 0) {
+        this.superAdmin = [...this.admins][0];
+      } else if (this.users.size > 1) {
+        // Find another user to be super admin
+        for (const [id, u] of this.users) {
+          if (id !== userId) {
+            this.superAdmin = id;
+            break;
+          }
+        }
+      } else {
+        this.superAdmin = null;
+      }
+    }
+
+    user.leaveRoom();
+    this.users.delete(userId);
+
+    console.log(`User ${userData.username} (${userId}) left room ${this.id}`);
+
+    this.notifyAll({
+      type: "USER_LEFT",
+      payload: {
+        user: userData,
+        roomId: this.id,
+      },
+    });
   }
 
   updateUserPosition(userId: string, position: { x: number; y: number }): void {

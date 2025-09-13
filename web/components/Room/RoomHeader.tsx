@@ -34,7 +34,7 @@ export function RoomHeader({
               <Button
                 size="sm"
                 onClick={onLeaveRoom}
-                variant="neutral"
+                variant="ghost"
                 className="hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-400 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -117,7 +117,7 @@ export function RoomHeader({
             <Button
               size="sm"
               onClick={onLeaveRoom}
-              variant="neutral"
+              variant="ghost"
               className="hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-400 transition-colors"
             >
               <ArrowLeft className="w-4 h-4 mr-1" />

@@ -35,6 +35,7 @@ const wss = new WebSocketServer({
     }
   },
 });
+
 let intervalId: NodeJS.Timeout;
 
 wss.on("connection", (ws, req) => {
@@ -52,7 +53,7 @@ wss.on("connection", (ws, req) => {
 
   ws.on("pong", (data) => {
     //@ts-ignore
-    this.isAlive = true;
+    ws.isAlive = true;
     const elapsed = Date.now() - Number(data.toString());
     console.log(`> RTT: ${elapsed}ms`);
   });
@@ -83,7 +84,7 @@ wss.on("listening", () => {
       ws.isAlive = false;
       ws.ping(Date.now().toString());
     });
-  }, 60000);
+  }, 300000);
 });
 
 wss.on("close", () => {

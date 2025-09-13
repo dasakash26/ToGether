@@ -23,7 +23,6 @@ export class User {
   }
 
   setPosition(position: Position): void {
-    // will only be used for initial spawn position
     this.position = position;
   }
 
@@ -31,9 +30,14 @@ export class User {
     const dx = Math.abs(position.x - this.position.x);
     const dy = Math.abs(position.y - this.position.y);
 
-    // TODO: remove true in prod
-    if (true || (dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
-      this.position = position;
+    if (dx <= 100000 && dy <= 100000 && (dx > 0 || dy > 0)) {
+      let newX = position.x;
+      let newY = position.y;
+
+      newX = Math.max(20, Math.min(780, newX));
+      newY = Math.max(20, Math.min(580, newY));
+
+      this.position = { x: newX, y: newY };
       return true;
     }
 
@@ -41,11 +45,11 @@ export class User {
   }
 
   send(message: OutgoingMessage): void {
+    console.log(`Sending message to ${this.username}:`, message);
     if (this.socket.readyState === WebSocket.OPEN) {
-      console.log(`Sending message to user ${this.username}:`, message);
       this.socket.send(JSON.stringify(message));
     } else {
-      console.error(`socket is not open for user ${this.username}`);
+      console.error(`Socket not open for user ${this.username}`);
     }
   }
 
@@ -60,11 +64,23 @@ export class User {
   }
 
   destroy(): void {
-    this.socket.close();
-    if (!this.roomId) {
-      return;
+    if (
+      this.socket.readyState === WebSocket.OPEN ||
+      this.socket.readyState === WebSocket.CONNECTING
+    ) {
+      this.socket.close();
     }
-    RoomManager.getInstance().removeUserFromRoom(this.roomId, this.id, false);
+
+    if (this.roomId) {
+      try {
+        RoomManager.getInstance().removeUserFromRoom(this.roomId, this.id);
+      } catch (error) {
+        console.error(
+          `Error removing user ${this.username} from room ${this.roomId}:`,
+          error
+        );
+      }
+    }
     console.log(`User ${this.username} destroyed`);
   }
 }

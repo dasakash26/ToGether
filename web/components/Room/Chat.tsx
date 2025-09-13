@@ -39,13 +39,13 @@ export function ChatPopup({
           <MessageCircle className="w-4 h-4" />
           <h3 className="font-semibold text-foreground">Room Chat</h3>
           {chatMessages.length > 0 && (
-            <Badge variant="neutral" className="text-xs">
+            <Badge className="text-xs bg-secondary-background text-foreground">
               {chatMessages.length}
             </Badge>
           )}
         </div>
         <Button
-          variant="neutral"
+          variant="ghost"
           size="sm"
           onClick={onClose}
           className="h-6 w-6 p-0 text-lg leading-none"

@@ -2,6 +2,7 @@ export interface Position {
   x: number;
   y: number;
 }
+
 export interface UserData {
   id: string;
   username: string;
@@ -9,12 +10,15 @@ export interface UserData {
   avatar?: string;
   roomId?: string | null;
 }
+
 interface Message {
   type: string;
   payload: any;
 }
+
+// Messages sent FROM client TO server
 export interface IncomingMessage extends Message {
-  type:  "JOIN_ROOM" | "LEAVE_ROOM" | "MOVEMENT" | "CHAT";
+  type: "JOIN_ROOM" | "LEAVE_ROOM" | "MOVEMENT" | "CHAT";
   payload: {
     user?: UserData;
     userId?: string;
@@ -24,6 +28,8 @@ export interface IncomingMessage extends Message {
     error?: string;
   };
 }
+
+// Messages sent FROM server TO client
 export interface OutgoingMessage extends Message {
   type:
     | "ROOM_STATE"
@@ -45,3 +51,7 @@ export interface OutgoingMessage extends Message {
     error?: string;
   };
 }
+
+// Canvas dimensions
+export const CANVAS_WIDTH = 800;
+export const CANVAS_HEIGHT = 600;

@@ -59,8 +59,8 @@ export function handleMessage(user: User, rawMessage: string): void {
     console.log("> ", message);
     switch (message.type) {
       case "JOIN_ROOM": {
-        const {roomId, position } = message.payload;
-        if(position){
+        const { roomId, position } = message.payload;
+        if (position) {
           user.setPosition(position);
         }
         if (roomId) {
@@ -119,6 +119,7 @@ export function handleMessage(user: User, rawMessage: string): void {
               type: "CHAT",
               payload: {
                 from: userData.id,
+                username: userData.username,
                 chat: chatMessage,
               },
             });
@@ -126,10 +127,11 @@ export function handleMessage(user: User, rawMessage: string): void {
             // broadcast message
             roomManagerInstance
               .getRoom(userData.roomId)
-              ?.notifyOthers(userData.id, {
+              ?.notifyAll({
                 type: "CHAT",
                 payload: {
                   from: userData.id,
+                  username: userData.username,
                   chat: chatMessage,
                 },
               });

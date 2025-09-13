@@ -35,14 +35,15 @@ export interface IncomingMessage extends Message {
     | "USER_JOINED"
     | "USER_LEFT"
     | "MOVEMENT"
-    | "MOVEMENT_REJECTED"
     | "CHAT"
-    | "ERROR";
+    | "ERROR"
+    | "MOVEMENT_REJECTED";
   payload: {
     users?: UserData[];
     user?: UserData;
     userId?: string;
     username?: string;
+    from?: string; // for CHAT messages
     chat?: string;
     position?: Position;
     roomId?: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import { UserData, IncomingMessage, ChatMessage } from "@/types";
 import {
   MOVE_SPEED,
@@ -8,7 +8,6 @@ import {
   CANVAS_HEIGHT,
   INTERACTION_DISTANCE,
 } from "@/lib/room-utils";
-import { useSearchParams } from "next/navigation";
 
 interface UseRoomLogicProps {
   roomId: string;
@@ -16,16 +15,14 @@ interface UseRoomLogicProps {
 }
 
 export function useRoomLogic({ roomId, username }: UseRoomLogicProps) {
-  const searchParams = useSearchParams();
   const wsRef = useRef<WebSocket | null>(null);
   const [users, setUsers] = useState<UserData[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [nearbyUsers, setNearbyUsers] = useState<UserData[]>([]);
-  const velocityRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
-  const keyStateRef = useRef<{ [key: string]: boolean }>({});
-
-  const currentUserId = searchParams.get("username");
+  const velocityRef = useRef({ dx: 0, dy: 0 });
+  const keyStateRef = useRef<Record<string, boolean>>({});
+  const [currentUserId, setCurrentUserId] = useState<string>("");
 
   const updateNearbyUsers = useCallback(() => {
     const currentUser = users.find((u) => u.id === currentUserId);
@@ -42,154 +39,201 @@ export function useRoomLogic({ roomId, username }: UseRoomLogicProps) {
     setNearbyUsers(nearby);
   }, [users, currentUserId]);
 
+  const addSystemMessage = useCallback((message: string) => {
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        id: `system-${Date.now()}`,
+        userId: "system",
+        username: "System",
+        message,
+        timestamp: Date.now(),
+      },
+    ]);
+  }, []);
+
   const handleWebSocketMessage = useCallback(
     (message: IncomingMessage) => {
       switch (message.type) {
-        case "ROOM_STATE":
-          setUsers(
-            (message.payload.users || []).filter(
-              (user, index, self) =>
-                index === self.findIndex((u) => u.id === user.id)
-            )
+        case "ROOM_STATE": {
+          const newUsers = (message.payload.users || []).filter(
+            (user, index, self) =>
+              index === self.findIndex((u) => u.id === user.id)
           );
+          setUsers(newUsers);
+
+          const currentUser = newUsers.find((u) => u.username === username);
+          if (currentUser) {
+            setCurrentUserId(currentUser.id);
+          }
           break;
-        case "USER_JOINED":
-          if (!message.payload.user) return;
+        }
+
+        case "USER_JOINED": {
+          const { user } = message.payload;
+          if (!user) return;
+
           setUsers((prev) =>
-            prev.some((u) => u.id === message.payload.user!.id)
-              ? prev
-              : [...prev, message.payload.user!]
+            prev.some((u) => u.id === user.id) ? prev : [...prev, user]
           );
-          setChatMessages((prev) => [
-            ...prev,
-            {
-              id: `system-${Date.now()}`,
-              userId: "system",
-              username: "System",
-              message: `${message.payload.user!.username} joined the room`,
-              timestamp: Date.now(),
-            },
-          ]);
+          addSystemMessage(`${user.username} joined the room`);
           break;
-        case "USER_LEFT":
-          if (!message.payload.userId) return;
+        }
+
+        case "USER_LEFT": {
+          //@ts-ignore
+          const userId  = message.payload.user?.id;
+          if (!userId) return;
           setUsers((prev) => {
-            const leftUser = prev.find((u) => u.id === message.payload.userId);
+            const leftUser = prev.find((u) => u.id === userId);
             if (leftUser) {
-              setChatMessages((chatPrev) => [
-                ...chatPrev,
-                {
-                  id: `system-${Date.now()}`,
-                  userId: "system",
-                  username: "System",
-                  message: `${leftUser.username} left the room`,
-                  timestamp: Date.now(),
-                },
-              ]);
+              addSystemMessage(`${leftUser.username} left the room`);
             }
-            return prev.filter((user) => user.id !== message.payload.userId);
+            return prev.filter((user) => user.id !== userId);
           });
           break;
-        case "MOVEMENT":
-          if (!message.payload.userId || !message.payload.position) return;
+        }
+
+        case "MOVEMENT": {
+          const { userId, position } = message.payload;
+          if (!userId || !position) return;
+
           setUsers((prev) =>
             prev.map((user) =>
-              user.id === message.payload.userId
-                ? { ...user, position: message.payload.position! }
-                : user
+              user.id === userId ? { ...user, position } : user
             )
           );
           break;
-        case "CHAT":
-          if (
-            !message.payload.userId ||
-            !message.payload.username ||
-            !message.payload.chat
-          )
-            return;
+        }
+
+        case "CHAT": {
+          const { from, username: senderUsername, chat } = message.payload;
+          if (!from || !senderUsername || !chat) return;
+
           setChatMessages((prev) => [
             ...prev,
             {
-              id: `${message.payload.userId}-${Date.now()}`,
-              userId: message.payload.userId!,
-              username: message.payload.username!,
-              message: message.payload.chat!,
+              id: `${from}-${Date.now()}`,
+              userId: from,
+              username: senderUsername,
+              message: chat,
               timestamp: Date.now(),
             },
           ]);
           break;
-        case "ERROR":
-          setChatMessages((prev) => [
-            ...prev,
-            {
-              id: `error-${Date.now()}`,
-              userId: "system",
-              username: "System",
-              message: `Error: ${message.payload.error}`,
-              timestamp: Date.now(),
-            },
-          ]);
+        }
+
+        case "ERROR": {
+          const { error } = message.payload;
+          addSystemMessage(`Error: ${error}`);
           break;
-        case "MOVEMENT_REJECTED":
-          setChatMessages((prev) => [
-            ...prev,
-            {
-              id: `warning-${Date.now()}`,
-              userId: "system",
-              username: "System",
-              message: `Movement blocked: ${message.payload.error}`,
-              timestamp: Date.now(),
-            },
-          ]);
+        }
+
+        case "MOVEMENT_REJECTED": {
+          const { error } = message.payload;
+          addSystemMessage(`Movement blocked: ${error}`);
           break;
+        }
       }
     },
-    [currentUserId]
+    [username, addSystemMessage]
   );
 
-  useEffect(() => {
-    if (!username?.trim()) return;
+  const connectWebSocket = useCallback(async () => {
+    if (!roomId || !username) {
+      console.error("Room ID or username is missing");
+      return;
+    }
+
+    // Prevent multiple simultaneous connections
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      console.log("WebSocket already connected");
+      return;
+    }
+
+    // Close any existing connection
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
 
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
     if (!wsUrl) {
       console.error("WebSocket URL is not defined");
       return;
     }
-    const finalUrl = new URL(
-      `${wsUrl}?roomId=${roomId}&username=${encodeURIComponent(
-        username.trim()
-      )}`
-    );
 
-    const ws = new WebSocket(finalUrl.toString());
-    wsRef.current = ws;
+    try {
+      const res = await fetch("/api/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, roomId }),
+      });
 
-    ws.onopen = () => {
-      setIsConnected(true);
-      ws.send(
-        JSON.stringify({
-          type: "JOIN_ROOM",
-          payload: { roomId, username: username.trim() },
-        })
-      );
-    };
-    ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      handleWebSocketMessage(message);
-    };
-    ws.onclose = () => setIsConnected(false);
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      setIsConnected(false);
-    };
+      const { token } = await res.json();
+      if (!token) {
+        console.error("Failed to fetch token");
+        return;
+      }
 
-    return () => ws.close();
+      const finalUrl = new URL(`${wsUrl}?token=${token}`);
+      const ws = new WebSocket(finalUrl.toString());
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log("WebSocket connected");
+        setIsConnected(true);
+        ws.send(
+          JSON.stringify({
+            type: "JOIN_ROOM",
+            payload: { roomId },
+          })
+        );
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          handleWebSocketMessage(message);
+        } catch (error) {
+          console.error("Failed to parse WebSocket message:", error);
+        }
+      };
+
+      ws.onclose = (event) => {
+        console.log(`WebSocket closed: ${event.code} ${event.reason}`);
+        setIsConnected(false);
+        wsRef.current = null;
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        setIsConnected(false);
+        wsRef.current = null;
+      };
+    } catch (error) {
+      console.error("Failed to connect to WebSocket:", error);
+      wsRef.current = null;
+    }
   }, [roomId, username, handleWebSocketMessage]);
+
+  useEffect(() => {
+    connectWebSocket();
+
+    return () => {
+      if (wsRef.current) {
+        console.log("Cleaning up WebSocket connection");
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, [connectWebSocket]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       const { dx, dy } = velocityRef.current;
-      if (dx === 0 && dy === 0) return;
+      if ((dx === 0 && dy === 0) || !currentUserId) return;
+
       setUsers((prev) => {
         return prev.map((user) => {
           if (user.id !== currentUserId) return user;
@@ -223,14 +267,13 @@ export function useRoomLogic({ roomId, username }: UseRoomLogicProps) {
     const updateVelocity = () => {
       let dx = 0,
         dy = 0;
-      if (keyStateRef.current["w"] || keyStateRef.current["arrowup"])
-        dy -= acceleration;
-      if (keyStateRef.current["s"] || keyStateRef.current["arrowdown"])
-        dy += acceleration;
-      if (keyStateRef.current["a"] || keyStateRef.current["arrowleft"])
-        dx -= acceleration;
-      if (keyStateRef.current["d"] || keyStateRef.current["arrowright"])
-        dx += acceleration;
+
+      const keys = keyStateRef.current;
+      if (keys.w || keys.arrowup) dy -= acceleration;
+      if (keys.s || keys.arrowdown) dy += acceleration;
+      if (keys.a || keys.arrowleft) dx -= acceleration;
+      if (keys.d || keys.arrowright) dx += acceleration;
+
       velocityRef.current = { dx, dy };
     };
 
@@ -246,6 +289,7 @@ export function useRoomLogic({ roomId, username }: UseRoomLogicProps) {
 
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
+
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
@@ -269,7 +313,12 @@ export function useRoomLogic({ roomId, username }: UseRoomLogicProps) {
 
   const leaveRoom = useCallback(() => {
     if (wsRef.current) {
-      wsRef.current.send(JSON.stringify({ type: "LEAVE_ROOM", payload: {} }));
+      wsRef.current.send(
+        JSON.stringify({
+          type: "LEAVE_ROOM",
+          payload: {},
+        })
+      );
     }
   }, []);
 

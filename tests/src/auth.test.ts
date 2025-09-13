@@ -29,7 +29,6 @@ describe("Authentication", () => {
       const ws = new WebSocket(`${SERVER_URL}?token=invalid-token`);
 
       ws.on("close", (code, reason) => {
-        // When verifyClient returns false, WebSocket closes with 1006 (abnormal closure)
         expect(code).toBe(1006);
         resolve();
       });
@@ -39,7 +38,6 @@ describe("Authentication", () => {
       });
 
       ws.on("error", () => {
-        // Expected for rejected connections
         resolve();
       });
     });

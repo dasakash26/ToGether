@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, ArrowLeft } from "lucide-react";
@@ -11,7 +11,7 @@ import { NearbyUsers } from "@/components/Room/NearbyUsers";
 import { RoomHeader } from "@/components/Room/RoomHeader";
 import { useRoomLogic } from "@/hooks/useRoomLogic";
 
-export default function Room() {
+function RoomContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -60,7 +60,7 @@ export default function Room() {
 
   if (!username?.trim()) {
     return (
-      <div className="h-screen bg-gradient-to-br from-background to-secondary/10 flex flex-col items-center justify-center px-4">
+      <div className="h-screen bg-background flex flex-col items-center justify-center px-4">
         <div className="text-center max-w-md">
           <AlertCircle className="w-16 h-16 mx-auto mb-4 text-destructive" />
           <h1 className="text-2xl font-bold mb-4 text-foreground">
@@ -71,7 +71,7 @@ export default function Room() {
           </p>
           <Button onClick={() => router.push("/")} className="w-full">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Go Back to Enter Username
+            Go Back
           </Button>
         </div>
       </div>
@@ -79,8 +79,7 @@ export default function Room() {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-background to-secondary/10 flex flex-col">
-      {/* Header */}
+    <div className="h-screen bg-background flex flex-col">
       <RoomHeader
         roomId={roomId}
         username={username}
@@ -89,30 +88,25 @@ export default function Room() {
         onLeaveRoom={handleLeaveRoom}
       />
 
-      {/* Main Content */}
       <div className="flex-1 flex">
-        {/* Game Area */}
         <div className="flex-1 flex flex-col items-center justify-center p-4">
-          <div className="relative bg-card rounded-lg shadow-lg border border-border">
+          <div className="relative bg-card rounded-lg shadow-xl border-2">
             <GameCanvas
               canvasRef={canvasRef}
               users={users}
               currentUserId={currentUserId}
               nearbyUsers={nearbyUsers}
             />
-            {/* Nearby Users */}
             <NearbyUsers nearbyUsers={nearbyUsers} />
           </div>
         </div>
       </div>
 
-      {/* Chat Button */}
       <ChatButton
         onClick={() => setShowChat(!showChat)}
         messageCount={chatMessages.length}
       />
 
-      {/* Chat Popup */}
       <ChatPopup
         chatMessages={chatMessages}
         currentUserId={currentUserId}
@@ -124,5 +118,19 @@ export default function Room() {
         onClose={() => setShowChat(false)}
       />
     </div>
+  );
+}
+
+export default function Room() {
+  return (
+    <Suspense
+      fallback={
+        <div className="h-screen bg-background flex items-center justify-center">
+          Loading...
+        </div>
+      }
+    >
+      <RoomContent />
+    </Suspense>
   );
 }
